@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-label="LocalAgent">
+  <rect width="16" height="16" rx="3" fill="#0a0b0c"/>
+  <rect x="3" y="5" width="3" height="7" fill="#eef0f2"/>
+  <rect x="7" y="3" width="3" height="9" fill="#eef0f2"/>
+  <rect x="11" y="6" width="3" height="6" fill="#d5dbe3"/>
+</svg>
