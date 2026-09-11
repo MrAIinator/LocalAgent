@@ -35,8 +35,9 @@ function waitFor(url, ms) {
         resolve(true);
       });
       req.on("error", () => {
-        if (Date.now() - start > ms) reject(new Error("UI did not start in " + ms / 1000 + "s"));
-        else setTimeout(tick, 500);
+        if (Date.now() - start > ms) {
+          reject(new Error("UI did not start in " + ms / 1000 + "s"));
+        } else setTimeout(tick, 500);
       });
       req.setTimeout(1500, () => req.destroy());
     };
@@ -47,23 +48,23 @@ function waitFor(url, ms) {
 async function main() {
   console.log("LocalAgent 0.1_beta launcher");
 
-  if (!exists(path.join(root, "node_modules", "vite"))) {
-    console.log("Installing npm packages (first run)...");
+  if (!exists(path.join(root, "node_modules", "vite", "bin", "vite.js"))) {
+    console.log("Installing npm packages...");
     const r = run("npm", ["install", "--include=dev", "--no-fund", "--no-audit"]);
     if (r.status) process.exit(r.status || 1);
   }
 
-  const electronDistWin = path.join(root, "node_modules", "electron", "dist", "electron.exe");
-  const electronDistUnix = path.join(root, "node_modules", "electron", "dist", "electron");
+  const electronExe = path.join(root, "node_modules", "electron", "dist", "electron.exe");
+  const electronBin = path.join(root, "node_modules", "electron", "dist", "electron");
   const electronInstall = path.join(root, "node_modules", "electron", "install.js");
-  if (!exists(electronDistWin) && !exists(electronDistUnix) && exists(electronInstall)) {
+  if (!exists(electronExe) && !exists(electronBin) && exists(electronInstall)) {
     console.log("Downloading Electron binary...");
     run(process.execPath, [electronInstall]);
   }
 
   const viteJs = path.join(root, "node_modules", "vite", "bin", "vite.js");
   if (!exists(viteJs)) {
-    console.error("vite is missing. Delete node_modules and run LocalAgent.bat again.");
+    console.error("vite is missing after npm install.");
     process.exit(1);
   }
 
