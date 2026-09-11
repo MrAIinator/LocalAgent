@@ -40,21 +40,39 @@ export const grokStep = createServerFn({ method: "POST" })
       ...data.messages.slice(-24),
     ];
 
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "grok-4.5",
-        messages,
-        tools: openaiTools(),
-        tool_choice: "auto",
-        temperature: 0.2,
-        max_tokens: 1600,
-      }),
-    });
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 18_000);
+    let res: Response;
+    try {
+      res = await fetch("https://api.x.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "grok-4.5",
+          messages,
+          tools: openaiTools(),
+          tool_choice: "auto",
+          temperature: 0.2,
+          max_tokens: 1600,
+        }),
+        signal: ac.signal,
+      });
+    } catch (err) {
+      const aborted = err instanceof Error && err.name === "AbortError";
+      return {
+        ok: false,
+        error: aborted
+          ? "Grok не ответил вовремя"
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");

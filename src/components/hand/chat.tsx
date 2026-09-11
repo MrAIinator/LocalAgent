@@ -79,7 +79,7 @@ export function Chat({
   onSend,
   listening,
   onMic,
-  speechOk,
+  speechOk: _speechOk,
   suggests = SUGGESTS,
 }: {
   messages: UiMessage[];
@@ -160,8 +160,7 @@ export function Chat({
             aria-label={listening ? "Стоп" : "Голос"}
             aria-pressed={listening}
             onClick={onMic}
-            disabled={!speechOk && !listening}
-            title={speechOk ? "Голосовой ввод" : "Голос недоступен в этом окне"}
+            title="Голосовой ввод"
           >
             {listening ? <Square className="size-3.5" /> : <Mic className="size-4" />}
           </Button>

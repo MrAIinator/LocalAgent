@@ -7,6 +7,9 @@
 Экран — кнопка в шапке, можно выключить.
 Голос — микрофон (скажи команду) и голосовой чат (слушаю → отвечаю вслух).
 
+Прямая ссылка на эту сборку:
+https://github.com/MrAIinator/LocalAgent/releases/download/0.1_beta/LocalAgent-0.1_beta.zip
+
 ## Что нужно
 
 1. [Node.js 20+](https://nodejs.org)

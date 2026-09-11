@@ -104,7 +104,9 @@ export function parseIntent(text: string, home: string): ToolCall[] | null {
 }
 
 export function grokBlocked(error: string): boolean {
-  return /403|credits|spending-limit|unavailable|недоступен/i.test(error);
+  return /403|credits|spending-limit|unavailable|недоступен|timeout|вовремя|AbortError/i.test(
+    error,
+  );
 }
 
 export function summarizeTools(

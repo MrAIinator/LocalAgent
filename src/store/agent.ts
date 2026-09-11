@@ -104,10 +104,8 @@ export const useAgent = create<AgentState>((set, get) => ({
       });
     }
     try {
-      const [roots, playground] = await Promise.all([
-        bridgeListRoots(),
-        bridgeEnsurePlayground().catch(() => null),
-      ]);
+      const playground = await bridgeEnsurePlayground().catch(() => null);
+      const roots = await bridgeListRoots();
       const expanded: Record<string, boolean> = {};
       for (const f of roots.favorites) expanded[f.path] = false;
       const shot =
