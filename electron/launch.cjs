@@ -8,6 +8,24 @@ const fs = require("fs");
 const root = path.join(__dirname, "..");
 process.chdir(root);
 
+function exists(p) {
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+}
+
+function run(cmd, args) {
+  console.log(">", cmd, args.join(" "));
+  return spawnSync(cmd, args, {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    cwd: root,
+    env: process.env,
+  });
+}
+
 function waitFor(url, ms) {
   const start = Date.now();
   return new Promise((resolve, reject) => {
@@ -17,8 +35,8 @@ function waitFor(url, ms) {
         resolve(true);
       });
       req.on("error", () => {
-        if (Date.now() - start > ms) reject(new Error("UI не поднялся за " + ms / 1000 + "с"));
-        else setTimeout(tick, 600);
+        if (Date.now() - start > ms) reject(new Error("UI did not start in " + ms / 1000 + "s"));
+        else setTimeout(tick, 500);
       });
       req.setTimeout(1500, () => req.destroy());
     };
@@ -26,78 +44,95 @@ function waitFor(url, ms) {
   });
 }
 
-function run(cmd, args, extra) {
-  return spawnSync(cmd, args, {
-    stdio: "inherit",
-    shell: true,
-    cwd: root,
-    ...extra,
-  });
-}
-
 async function main() {
-  console.log("LocalAgent 0.1_beta");
-  if (!fs.existsSync(path.join(root, "node_modules", "react"))) {
-    console.log("Ставлю зависимости (первый запуск)…");
-    const r = run("npm", ["install"]);
+  console.log("LocalAgent 0.1_beta launcher");
+
+  if (!exists(path.join(root, "node_modules", "vite"))) {
+    console.log("Installing npm packages (first run)...");
+    const r = run("npm", ["install", "--include=dev", "--no-fund", "--no-audit"]);
     if (r.status) process.exit(r.status || 1);
   }
-  const electronCli = path.join(root, "node_modules", "electron", "cli.js");
-  if (!fs.existsSync(electronCli)) {
-    console.log("Ставлю Electron…");
-    const r = run("npm", ["install", "electron@33.4.11", "--save-dev"]);
-    if (r.status) process.exit(r.status || 1);
+
+  const electronDistWin = path.join(root, "node_modules", "electron", "dist", "electron.exe");
+  const electronDistUnix = path.join(root, "node_modules", "electron", "dist", "electron");
+  const electronInstall = path.join(root, "node_modules", "electron", "install.js");
+  if (!exists(electronDistWin) && !exists(electronDistUnix) && exists(electronInstall)) {
+    console.log("Downloading Electron binary...");
+    run(process.execPath, [electronInstall]);
+  }
+
+  const viteJs = path.join(root, "node_modules", "vite", "bin", "vite.js");
+  if (!exists(viteJs)) {
+    console.error("vite is missing. Delete node_modules and run LocalAgent.bat again.");
+    process.exit(1);
   }
 
   const env = { ...process.env, ELECTRON_START_URL: "http://127.0.0.1:8080" };
-  const already = await new Promise((resolve) => {
-    const req = http.get("http://127.0.0.1:8080/", (res) => {
-      res.resume();
-      resolve(true);
+
+  let already = false;
+  try {
+    already = await new Promise((resolve) => {
+      const req = http.get("http://127.0.0.1:8080/", (res) => {
+        res.resume();
+        resolve(true);
+      });
+      req.on("error", () => resolve(false));
+      req.setTimeout(600, () => {
+        req.destroy();
+        resolve(false);
+      });
     });
-    req.on("error", () => resolve(false));
-    req.setTimeout(800, () => {
-      req.destroy();
-      resolve(false);
-    });
-  });
+  } catch {
+    already = false;
+  }
 
   let server = null;
   if (!already) {
-    server = spawn("npm", ["run", "dev"], {
+    console.log("Starting UI server...");
+    server = spawn(process.execPath, [viteJs, "--host", "127.0.0.1", "--port", "8080"], {
       stdio: "inherit",
-      shell: true,
       cwd: root,
       env,
+      shell: false,
     });
-    await waitFor("http://127.0.0.1:8080/", 120000);
+    server.on("error", (err) => {
+      console.error("vite failed:", err.message);
+    });
+    await waitFor("http://127.0.0.1:8080/", 180000);
   }
 
-  const el = spawn("npx", ["electron", "electron/main.cjs"], {
+  const electronCli = path.join(root, "node_modules", "electron", "cli.js");
+  if (!exists(electronCli)) {
+    console.error("Electron CLI missing.");
+    process.exit(1);
+  }
+
+  console.log("Opening window...");
+  const el = spawn(process.execPath, [electronCli, path.join(root, "electron", "main.cjs")], {
     stdio: "inherit",
-    shell: true,
     cwd: root,
     env,
+    shell: false,
   });
 
   const shutdown = () => {
     try {
       el.kill();
-    } catch {
-      /* ignore */
-    }
+    } catch {}
     if (server) {
       try {
         server.kill();
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     }
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
   el.on("exit", (code) => {
-    if (server) server.kill();
+    if (server) {
+      try {
+        server.kill();
+      } catch {}
+    }
     process.exit(code ?? 0);
   });
 }
